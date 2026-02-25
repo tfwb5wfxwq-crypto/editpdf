@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
-// Configure PDF.js worker (local copy)
+// Configure PDF.js worker (local copy with basePath)
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/editpdf/pdf.worker.min.mjs';
 }
 
 interface TextItem {
