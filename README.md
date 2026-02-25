@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EditPDF - Professional PDF Editor
 
-## Getting Started
+A modern, **100% client-side** PDF editor built with Next.js and pdf-lib. All processing happens locally in your browser - no uploads, maximum privacy.
 
-First, run the development server:
+![EditPDF](https://img.shields.io/badge/privacy-100%25-green)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+## ✨ Features
+
+- 🔀 **Merge PDFs** - Combine multiple PDF files into one
+- ✂️ **Split PDF** - Extract individual pages or split into multiple files
+- 🗜️ **Compress** - Reduce PDF file size without quality loss
+- 🔒 **100% Private** - All processing happens locally, files never leave your device
+- ⚡ **Lightning Fast** - Optimized PDF engine for instant results
+- 🆓 **Always Free** - No limits, watermarks, or subscriptions
+- 📱 **Mobile Friendly** - Works seamlessly on all devices
+
+## 🚀 Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Tech Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Framework**: Next.js 15 with App Router
+- **PDF Processing**: pdf-lib (client-side)
+- **Styling**: Tailwind CSS 4.0
+- **File Upload**: react-dropzone
+- **Type Safety**: TypeScript
+- **Deployment**: Vercel
 
-## Learn More
+## 📦 Core Dependencies
 
-To learn more about Next.js, take a look at the following resources:
+```json
+{
+  "pdf-lib": "^1.17.1",
+  "pdfjs-dist": "^4.0.379",
+  "react-dropzone": "^14.2.3"
+}
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🎨 Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+editpdf/
+├── app/
+│   ├── page.tsx              # Main page
+│   └── layout.tsx            # Root layout
+├── components/
+│   └── FileUpload.tsx        # Drag & drop upload
+├── lib/
+│   └── pdf-operations.ts     # PDF utilities
+└── package.json
+```
 
-## Deploy on Vercel
+## 🔒 Privacy & Security
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**EditPDF is 100% private:**
+- ✅ All processing happens in your browser
+- ✅ Files never uploaded to any server
+- ✅ No tracking or analytics
+- ✅ No data storage
+- ✅ Open source & transparent
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📝 License
+
+MIT License - feel free to use for any project
+
+---
+
+Made with ❤️ for privacy-conscious users
