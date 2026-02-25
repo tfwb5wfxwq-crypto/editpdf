@@ -1,4 +1,4 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, degrees as pdfDegrees } from 'pdf-lib';
 
 /**
  * Merge multiple PDF files into one
@@ -100,7 +100,7 @@ export async function rotatePDF(
 
   pages.forEach((page) => {
     const currentRotation = page.getRotation().angle;
-    page.setRotation({ type: 'degrees', angle: currentRotation + degrees });
+    page.setRotation(pdfDegrees(currentRotation + degrees));
   });
 
   return await pdf.save();

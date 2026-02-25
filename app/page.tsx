@@ -25,7 +25,7 @@ export default function Home() {
 
     try {
       const mergedPdf = await mergePDFs(files);
-      const blob = new Blob([mergedPdf], { type: 'application/pdf' });
+      const blob = new Blob([mergedPdf as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -51,7 +51,7 @@ export default function Home() {
     try {
       const splitPdfs = await splitPDF(files[0]);
       splitPdfs.forEach((pdf, index) => {
-        const blob = new Blob([pdf], { type: 'application/pdf' });
+        const blob = new Blob([pdf as BlobPart], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -77,7 +77,7 @@ export default function Home() {
 
     try {
       const compressedPdf = await compressPDF(files[0]);
-      const blob = new Blob([compressedPdf], { type: 'application/pdf' });
+      const blob = new Blob([compressedPdf as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
