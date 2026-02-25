@@ -132,10 +132,20 @@ export default function Home() {
             </span>
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Merge, split, and compress PDFs directly in your browser.
+            Edit, merge, split, and compress PDFs directly in your browser.
             <br />
             <span className="text-sm font-medium text-green-600">🔒 No upload • 100% local processing • Privacy guaranteed</span>
           </p>
+
+          {/* Editor CTA */}
+          <div className="mt-8">
+            <a
+              href="/editor"
+              className="inline-block px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              ✏️ Éditeur PDF Complet
+            </a>
+          </div>
         </div>
 
         {/* File Upload */}
