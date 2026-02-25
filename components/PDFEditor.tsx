@@ -3,6 +3,9 @@
 import { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+import { extractFontsFromPDF, isFontEmbeddable, getFontExtractionSummary, type FontMap } from '@/lib/font-extractor';
+import { parseFonts, type ParsedFont } from '@/lib/font-parser';
 
 // Configure PDF.js worker (local copy with basePath)
 if (typeof window !== 'undefined') {
@@ -38,6 +41,11 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
 
+  // 🆕 SEJDA-QUALITY: Font extraction state
+  const [extractedFonts, setExtractedFonts] = useState<FontMap>({});
+  const [parsedFonts, setParsedFonts] = useState<Map<string, ParsedFont>>(new Map());
+  const [fontExtractionStatus, setFontExtractionStatus] = useState<'idle' | 'extracting' | 'done' | 'error'>('idle');
+
   useEffect(() => {
     loadPDF();
   }, [file]);
@@ -49,10 +57,35 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
   }, [pdfDoc, currentPage, scale]);
 
   const loadPDF = async () => {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    setPdfDoc(pdf);
-    setTotalPages(pdf.numPages);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      setPdfDoc(pdf);
+      setTotalPages(pdf.numPages);
+
+      // 🆕 SEJDA-QUALITY: Extract embedded fonts
+      setFontExtractionStatus('extracting');
+      console.log('🔍 Extracting fonts from PDF...');
+
+      const fonts = await extractFontsFromPDF(pdf);
+      setExtractedFonts(fonts);
+
+      // Parse embeddable fonts (TrueType, OpenType)
+      const embeddableFonts = Object.values(fonts).filter(isFontEmbeddable);
+      console.log(getFontExtractionSummary(fonts));
+
+      if (embeddableFonts.length > 0) {
+        console.log('📝 Parsing embeddable fonts...');
+        const parsed = await parseFonts(embeddableFonts);
+        setParsedFonts(parsed);
+        console.log(`✅ Ready to use ${parsed.size} extracted fonts`);
+      }
+
+      setFontExtractionStatus('done');
+    } catch (error) {
+      console.error('❌ Font extraction error:', error);
+      setFontExtractionStatus('error');
+    }
   };
 
   const renderPage = async (pageNum: number) => {
@@ -109,6 +142,24 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
     });
 
     setTextItems(items);
+
+    // En mode édition, cacher le texte original avec des rectangles blancs
+    if (editMode && items.length > 0) {
+      items.forEach(item => {
+        // Mesurer la vraie largeur du texte
+        context.font = `${item.fontSize}px ${item.fontFamily}`;
+        const textWidth = context.measureText(item.text).width;
+
+        // Dessiner rectangle blanc avec marge généreuse
+        context.fillStyle = 'white';
+        context.fillRect(
+          item.x - 2,
+          item.y - item.height - 2,
+          Math.max(textWidth, item.width) + 200,  // Grande marge pour texte édité
+          item.height + 4
+        );
+      });
+    }
   };
 
   const updateText = (id: string, newText: string) => {
@@ -124,6 +175,10 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
       // Load original PDF
       const arrayBuffer = await file.arrayBuffer();
       const pdfLibDoc = await PDFDocument.load(arrayBuffer);
+
+      // 🆕 SEJDA-QUALITY: Register fontkit for custom font embedding
+      pdfLibDoc.registerFontkit(fontkit);
+
       const pages = pdfLibDoc.getPages();
       const page = pages[currentPage - 1];
 
@@ -137,22 +192,40 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
       pdfLibDoc.setCreationDate(new Date());
       pdfLibDoc.setModificationDate(new Date());
 
-      // Get appropriate fonts based on detected font families
+      // 🆕 SEJDA-QUALITY: Font embedding with extracted fonts
       const fontCache: { [key: string]: any } = {};
-      const getFont = async (fontFamily?: string) => {
-        if (!fontFamily) return await pdfLibDoc.embedFont(StandardFonts.Helvetica);
+      let fontsUsed = { extracted: 0, standard: 0 };
 
-        if (fontCache[fontFamily]) return fontCache[fontFamily];
+      const getFont = async (fontName: string, fontFamily?: string) => {
+        // Return cached font if available
+        if (fontCache[fontName]) return fontCache[fontName];
 
+        // PRIORITY 1: Try to use extracted font (SEJDA QUALITY)
+        const parsedFont = parsedFonts.get(fontName);
+        if (parsedFont && parsedFont.isValid) {
+          try {
+            console.log(`✅ Using extracted font: ${fontName}`);
+            const embeddedFont = await pdfLibDoc.embedFont(parsedFont.buffer);
+            fontCache[fontName] = embeddedFont;
+            fontsUsed.extracted++;
+            return embeddedFont;
+          } catch (error) {
+            console.warn(`⚠️  Failed to embed extracted font ${fontName}, falling back to standard`, error);
+          }
+        }
+
+        // PRIORITY 2: Fallback to standard fonts
+        console.log(`ℹ️  Using standard font for: ${fontName}`);
         let standardFont = StandardFonts.Helvetica;
-        if (fontFamily.includes('Times') || fontFamily.includes('Serif')) {
+        if (fontFamily?.includes('Times') || fontFamily?.includes('Serif')) {
           standardFont = StandardFonts.TimesRoman;
-        } else if (fontFamily.includes('Courier') || fontFamily.includes('Mono')) {
+        } else if (fontFamily?.includes('Courier') || fontFamily?.includes('Mono')) {
           standardFont = StandardFonts.Courier;
         }
 
         const font = await pdfLibDoc.embedFont(standardFont);
-        fontCache[fontFamily] = font;
+        fontCache[fontName] = font;
+        fontsUsed.standard++;
         return font;
       };
 
@@ -168,9 +241,9 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
         });
       });
 
-      // Draw new text with original fonts
+      // 🆕 SEJDA-QUALITY: Draw new text with extracted fonts
       for (const item of textItems) {
-        const font = await getFont(item.fontFamily);
+        const font = await getFont(item.fontName, item.fontFamily);
         page.drawText(item.text, {
           x: item.x / scale,
           y: height - (item.y / scale),
@@ -189,7 +262,15 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
       a.download = file.name; // Même nom de fichier
       a.click();
 
-      alert('✅ PDF sauvegardé avec succès !\n\n🔒 Métadonnées effacées');
+      // 🆕 SEJDA-QUALITY: Show font usage summary
+      const fontsMessage = `✅ PDF sauvegardé avec succès !
+
+🔒 Métadonnées effacées
+🎨 Fonts utilisées:
+  • ${fontsUsed.extracted} polices originales (qualité Sejda)
+  • ${fontsUsed.standard} polices standard (fallback)`;
+
+      alert(fontsMessage);
     } catch (error) {
       console.error('Error saving PDF:', error);
       alert('❌ Erreur lors de la sauvegarde');
@@ -288,7 +369,7 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
                 className={`absolute border-2 transition-all ${
                   selectedText === item.id
                     ? 'border-blue-500 bg-blue-50'
-                    : 'border-transparent hover:border-blue-300 bg-transparent'
+                    : 'border-transparent hover:border-blue-300 bg-white'
                 }`}
                 style={{
                   left: `${item.x}px`,
@@ -297,8 +378,9 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
                   height: `${item.height}px`,
                   fontSize: `${item.fontSize}px`,
                   fontFamily: item.fontFamily || 'Arial, sans-serif',
-                  padding: '0',
+                  padding: '0 2px',
                   lineHeight: `${item.height}px`,
+                  boxShadow: '0 0 0 1px rgba(0,0,0,0.05)',
                 }}
               />
             ))}
