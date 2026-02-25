@@ -1,78 +1,126 @@
-# EditPDF - Professional PDF Editor
+# ✏️ Éditeur PDF en ligne
 
-A modern, **100% client-side** PDF editor built with Next.js and pdf-lib. All processing happens locally in your browser - no uploads, maximum privacy.
+**Éditez vos PDF en 1 seconde • 100% privé • Métadonnées effacées**
 
-![EditPDF](https://img.shields.io/badge/privacy-100%25-green)
-![License](https://img.shields.io/badge/license-MIT-blue)
-
-## ✨ Features
-
-- 🔀 **Merge PDFs** - Combine multiple PDF files into one
-- ✂️ **Split PDF** - Extract individual pages or split into multiple files
-- 🗜️ **Compress** - Reduce PDF file size without quality loss
-- 🔒 **100% Private** - All processing happens locally, files never leave your device
-- ⚡ **Lightning Fast** - Optimized PDF engine for instant results
-- 🆓 **Always Free** - No limits, watermarks, or subscriptions
-- 📱 **Mobile Friendly** - Works seamlessly on all devices
-
-## 🚀 Quick Start
-
-```bash
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) to see the app.
-
-## 🛠️ Tech Stack
-
-- **Framework**: Next.js 15 with App Router
-- **PDF Processing**: pdf-lib (client-side)
-- **Styling**: Tailwind CSS 4.0
-- **File Upload**: react-dropzone
-- **Type Safety**: TypeScript
-- **Deployment**: Vercel
-
-## 📦 Core Dependencies
-
-```json
-{
-  "pdf-lib": "^1.17.1",
-  "pdfjs-dist": "^4.0.379",
-  "react-dropzone": "^14.2.3"
-}
-```
-
-## 🎨 Project Structure
-
-```
-editpdf/
-├── app/
-│   ├── page.tsx              # Main page
-│   └── layout.tsx            # Root layout
-├── components/
-│   └── FileUpload.tsx        # Drag & drop upload
-├── lib/
-│   └── pdf-operations.ts     # PDF utilities
-└── package.json
-```
-
-## 🔒 Privacy & Security
-
-**EditPDF is 100% private:**
-- ✅ All processing happens in your browser
-- ✅ Files never uploaded to any server
-- ✅ No tracking or analytics
-- ✅ No data storage
-- ✅ Open source & transparent
-
-## 📝 License
-
-MIT License - feel free to use for any project
+🌐 **[Accéder au site](https://tfwb5wfxwq-crypto.github.io/editpdf/)**
 
 ---
 
-Made with ❤️ for privacy-conscious users
+## ⚡ Workflow ultra-rapide
+
+1. **Glissez-déposez** votre PDF sur la page d'accueil
+2. **Modifiez** le texte directement (mode édition actif par défaut)
+3. **Téléchargez** avec métadonnées automatiquement effacées
+
+C'est tout ! Pas d'inscription, pas de compte, pas de limites.
+
+---
+
+## ✨ Fonctionnalités
+
+### 📝 Édition de texte
+- ✏️ Cliquez sur n'importe quel texte pour le modifier
+- 🔤 Conservation des polices originales
+- 📏 Zoom in/out pour plus de précision
+- 📄 Support multi-pages
+
+### 🔒 Confidentialité renforcée
+- **100% local** : Aucune donnée envoyée à un serveur
+- **Métadonnées effacées** : Auteur, titre, dates, créateur, producteur automatiquement supprimés
+- **Pas de tracking** : Aucun cookie, aucune analytics
+- **Pas de stockage** : Les fichiers restent uniquement dans votre navigateur
+
+### 🆓 Gratuit et sans limites
+- Aucune inscription requise
+- Pas de watermark
+- Pas de limite de taille de fichier
+- Pas de limite de nombre de modifications
+
+---
+
+## 🛠️ Technologies
+
+- **Next.js 16** avec App Router et export statique
+- **pdf-lib** pour la manipulation PDF côté client
+- **pdfjs-dist** pour le rendu et l'extraction de texte
+- **Tailwind CSS 4** pour le design moderne
+- **react-dropzone** pour le drag & drop
+
+---
+
+## 🚀 Développement local
+
+```bash
+# Installer les dépendances
+npm install
+
+# Lancer le serveur de développement
+npm run dev
+
+# Ouvrir http://localhost:3000
+```
+
+---
+
+## 📦 Build et déploiement
+
+```bash
+# Build pour production (export statique)
+npm run build
+
+# Le dossier /out contient les fichiers statiques
+# Déployables sur GitHub Pages, Netlify, Vercel, etc.
+```
+
+Le déploiement sur GitHub Pages se fait automatiquement via GitHub Actions à chaque push sur `main`.
+
+---
+
+## 🔐 Sécurité et confidentialité
+
+### Données effacées lors de la sauvegarde :
+- ✅ Titre du document
+- ✅ Auteur
+- ✅ Sujet
+- ✅ Mots-clés
+- ✅ Créateur
+- ✅ Producteur
+- ✅ Dates de création et modification (remplacées par la date actuelle)
+
+### Traitement 100% local :
+- ❌ Aucun upload vers un serveur
+- ❌ Aucun cookie
+- ❌ Aucun tracking
+- ❌ Aucune analytics
+- ✅ Tout se passe dans votre navigateur
+
+---
+
+## 📝 Licence
+
+MIT License - Utilisez librement pour tout projet personnel ou commercial.
+
+---
+
+## 🤝 Contribution
+
+Les contributions sont bienvenues ! N'hésitez pas à :
+- 🐛 Signaler des bugs
+- 💡 Proposer des améliorations
+- 🔧 Soumettre des pull requests
+
+---
+
+## 💡 Cas d'usage
+
+- **Corriger des fautes** dans un PDF
+- **Modifier des dates** ou des montants
+- **Supprimer des informations personnelles** (métadonnées)
+- **Anonymiser un document** en effaçant l'auteur
+- **Mettre à jour du contenu** rapidement
+
+---
+
+**Fait avec ❤️ pour la confidentialité et la simplicité**
+
+🔒 Vos données restent CHEZ VOUS
