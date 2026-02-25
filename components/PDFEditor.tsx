@@ -33,7 +33,7 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
   const [totalPages, setTotalPages] = useState(0);
   const [textItems, setTextItems] = useState<TextItem[]>([]);
   const [selectedText, setSelectedText] = useState<string | null>(null);
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(true); // Mode édition activé par défaut
   const [scale, setScale] = useState(1.5);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfDoc, setPdfDoc] = useState<any>(null);
@@ -127,6 +127,16 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
       const pages = pdfLibDoc.getPages();
       const page = pages[currentPage - 1];
 
+      // ÉCRASER LES MÉTADONNÉES
+      pdfLibDoc.setTitle('');
+      pdfLibDoc.setAuthor('');
+      pdfLibDoc.setSubject('');
+      pdfLibDoc.setKeywords([]);
+      pdfLibDoc.setProducer('');
+      pdfLibDoc.setCreator('');
+      pdfLibDoc.setCreationDate(new Date());
+      pdfLibDoc.setModificationDate(new Date());
+
       // Get appropriate fonts based on detected font families
       const fontCache: { [key: string]: any } = {};
       const getFont = async (fontFamily?: string) => {
@@ -170,16 +180,16 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
         });
       }
 
-      // Save modified PDF
+      // Save modified PDF with metadata stripped
       const pdfBytes = await pdfLibDoc.save();
       const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `edited-${file.name}`;
+      a.download = file.name; // Même nom de fichier
       a.click();
 
-      alert('✅ PDF modifié sauvegardé avec les fonts originales !');
+      alert('✅ PDF sauvegardé avec succès !\n\n🔒 Métadonnées effacées');
     } catch (error) {
       console.error('Error saving PDF:', error);
       alert('❌ Erreur lors de la sauvegarde');
@@ -187,20 +197,23 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={onClose}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all hover:scale-105"
               >
-                ← Retour
+                ← Nouveau PDF
               </button>
-              <div className="text-sm text-gray-600">
-                {file.name} • Page {currentPage} / {totalPages}
+              <div className="text-sm font-medium text-gray-700">
+                📄 {file.name}
+              </div>
+              <div className="text-xs text-gray-500 bg-blue-100 px-3 py-1 rounded-full">
+                Page {currentPage}/{totalPages}
               </div>
             </div>
 
@@ -208,14 +221,16 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
               {/* Zoom controls */}
               <button
                 onClick={() => setScale(s => Math.max(0.5, s - 0.25))}
-                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold transition-all hover:scale-105"
+                title="Zoom arrière"
               >
                 −
               </button>
-              <span className="px-3 py-2 text-sm">{Math.round(scale * 100)}%</span>
+              <span className="px-3 py-2 text-sm font-medium text-gray-700">{Math.round(scale * 100)}%</span>
               <button
                 onClick={() => setScale(s => Math.min(3, s + 0.25))}
-                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold transition-all hover:scale-105"
+                title="Zoom avant"
               >
                 +
               </button>
@@ -223,21 +238,23 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
               {/* Edit mode toggle */}
               <button
                 onClick={() => setEditMode(!editMode)}
-                className={`px-4 py-2 rounded-lg transition-colors ${
+                className={`px-4 py-2 rounded-xl transition-all hover:scale-105 ${
                   editMode
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200'
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                 }`}
+                title={editMode ? 'Désactiver l\'édition' : 'Activer l\'édition'}
               >
-                {editMode ? '✏️ Mode édition' : '👁️ Mode lecture'}
+                {editMode ? '✏️ Édition active' : '👁️ Lecture'}
               </button>
 
               {/* Save button */}
               <button
                 onClick={savePDF}
-                className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all"
+                className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all shadow-lg hover:shadow-xl hover:scale-105 font-semibold"
+                title="Sauvegarder avec métadonnées effacées"
               >
-                💾 Sauvegarder
+                💾 Télécharger
               </button>
             </div>
           </div>
@@ -246,10 +263,19 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
 
       {/* Main content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        {/* Instructions rapides */}
+        {editMode && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+            <p className="text-sm text-blue-800">
+              <span className="font-semibold">✏️ Mode édition actif :</span> Cliquez sur n'importe quel texte pour le modifier • Les métadonnées seront effacées lors de la sauvegarde
+            </p>
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
           {/* Canvas + text overlay */}
           <div className="relative inline-block">
-            <canvas ref={canvasRef} className="border border-gray-300" />
+            <canvas ref={canvasRef} className="border-2 border-gray-300 rounded-lg shadow-md" />
 
             {/* Editable text overlays */}
             {editMode && textItems.map(item => (
@@ -279,25 +305,34 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
           </div>
 
           {/* Page navigation */}
-          <div className="mt-6 flex items-center justify-center space-x-4">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ← Précédent
-            </button>
-            <span className="text-sm text-gray-600">
-              Page {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Suivant →
-            </button>
-          </div>
+          {totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center space-x-4">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105 disabled:hover:scale-100 font-semibold shadow-lg"
+              >
+                ← Page précédente
+              </button>
+              <div className="px-6 py-3 bg-blue-100 text-blue-800 rounded-xl font-bold">
+                {currentPage} / {totalPages}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105 disabled:hover:scale-100 font-semibold shadow-lg"
+              >
+                Page suivante →
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Info métadonnées */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-gray-600">
+            🔒 <span className="font-semibold">Confidentialité garantie :</span> Toutes les métadonnées (auteur, titre, dates, etc.) seront effacées lors du téléchargement
+          </p>
         </div>
       </div>
     </div>
