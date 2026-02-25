@@ -1,27 +1,17 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { useRouter } from 'next/navigation';
+import PDFEditor from '@/components/PDFEditor';
 
 export default function Home() {
-  const router = useRouter();
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
-      // Store file in sessionStorage and redirect
-      const file = acceptedFiles[0];
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          sessionStorage.setItem('pdfFile', e.target.result as string);
-          sessionStorage.setItem('pdfFileName', file.name);
-          router.push('/editor');
-        }
-      };
-      reader.readAsDataURL(file);
+      setPdfFile(acceptedFiles[0]);
     }
-  }, [router]);
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -31,6 +21,12 @@ export default function Home() {
     multiple: false
   });
 
+  // Si un fichier est chargé, afficher l'éditeur
+  if (pdfFile) {
+    return <PDFEditor file={pdfFile} onClose={() => setPdfFile(null)} />;
+  }
+
+  // Sinon, afficher la page d'accueil
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
       <div className="max-w-3xl w-full">
