@@ -22,6 +22,8 @@ interface TextItem {
   fontSize: number;
   fontName: string;
   fontFamily?: string;
+  fontWeight?: number; // 100-900 (400=Regular, 700=Bold)
+  fontStyle?: 'normal' | 'italic'; // italic or normal
   color?: string;
   transform?: number[];
 }
@@ -114,10 +116,35 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
     textContent.items.forEach((item: any, index: number) => {
       if (item.str && item.str.trim()) {
         const transform = item.transform;
+        const fontName = item.fontName || '';
+
+        // 🆕 SEJDA-QUALITY: Detect font style from font name
+        const nameLower = fontName.toLowerCase();
+        let fontWeight = 400; // Regular by default
+        let fontStyle: 'normal' | 'italic' = 'normal';
+
+        // Check for bold
+        if (nameLower.includes('bold')) {
+          fontWeight = 700;
+        } else if (nameLower.includes('semibold') || nameLower.includes('demibold')) {
+          fontWeight = 600;
+        } else if (nameLower.includes('medium')) {
+          fontWeight = 500;
+        } else if (nameLower.includes('light')) {
+          fontWeight = 300;
+        } else if (nameLower.includes('thin')) {
+          fontWeight = 100;
+        } else if (nameLower.includes('black') || nameLower.includes('heavy')) {
+          fontWeight = 900;
+        }
+
+        // Check for italic
+        if (nameLower.includes('italic') || nameLower.includes('oblique')) {
+          fontStyle = 'italic';
+        }
 
         // Try to determine font family from font name
         let fontFamily = 'Arial, sans-serif';
-        const fontName = item.fontName || '';
         if (fontName.includes('Times') || fontName.includes('Serif')) {
           fontFamily = 'Times New Roman, serif';
         } else if (fontName.includes('Courier') || fontName.includes('Mono')) {
@@ -136,6 +163,8 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
           fontSize: transform[0] * scale,
           fontName: item.fontName || 'default',
           fontFamily,
+          fontWeight,
+          fontStyle,
           transform: transform,
         });
       }
@@ -378,6 +407,8 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
                   height: `${item.height}px`,
                   fontSize: `${item.fontSize}px`,
                   fontFamily: item.fontFamily || 'Arial, sans-serif',
+                  fontWeight: item.fontWeight || 400,
+                  fontStyle: item.fontStyle || 'normal',
                   padding: '0 2px',
                   lineHeight: `${item.height}px`,
                   boxShadow: '0 0 0 1px rgba(0,0,0,0.05)',

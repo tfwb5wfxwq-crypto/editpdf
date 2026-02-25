@@ -5,11 +5,20 @@
 
 import * as pdfjsLib from 'pdfjs-dist';
 
+export interface FontStyle {
+  weight: number; // 100-900 (400=Regular, 700=Bold)
+  italic: boolean;
+  variant: 'Regular' | 'Bold' | 'Italic' | 'BoldItalic' | 'Light' | 'Medium' | 'SemiBold' | 'Black' | 'Thin' | 'ExtraLight' | 'ExtraBold' | 'Heavy';
+}
+
 export interface ExtractedFont {
-  name: string;
+  name: string; // Clean font name without subset prefix
+  originalName: string; // Full name with subset prefix (e.g., "ABCDEF+Helvetica-Bold")
+  baseName: string; // Base font family without style (e.g., "Helvetica")
   data: Uint8Array | null;
   type: 'TrueType' | 'OpenType' | 'Type1' | 'CFF' | 'Unknown';
   subtype?: string;
+  style: FontStyle;
 }
 
 export interface FontMap {
@@ -87,14 +96,86 @@ async function extractFontsFromObjStorage(
         processedFonts.add(fontName);
       } catch (error) {
         console.warn(`⚠️  Failed to extract ${fontName}:`, error);
+        const { baseName, style } = parseFontName(fontName);
+        const cleanName = fontName.includes('+') ? fontName.split('+')[1] : fontName;
         fonts[fontName] = {
-          name: fontName,
+          name: cleanName,
+          originalName: fontName,
+          baseName,
           data: null,
           type: 'Unknown',
+          style,
         };
       }
     }
   }
+}
+
+/**
+ * Parse font name to extract base name and style information
+ * @param fontName Font name (may include subset prefix like "ABCDEF+")
+ * @returns Object with baseName and style
+ */
+function parseFontName(fontName: string): { baseName: string; style: FontStyle } {
+  // Remove subset prefix (e.g., "ABCDEF+Helvetica-Bold" -> "Helvetica-Bold")
+  const nameWithoutSubset = fontName.includes('+') ? fontName.split('+')[1] : fontName;
+  const nameLower = nameWithoutSubset.toLowerCase();
+
+  let weight = 400;
+  let italic = false;
+  let variant: FontStyle['variant'] = 'Regular';
+
+  // Detect font variant from name
+  // Order matters: check compound styles first
+  if (nameLower.includes('bolditalic') || nameLower.includes('bold-italic') || nameLower.includes('bold_italic')) {
+    weight = 700;
+    italic = true;
+    variant = 'BoldItalic';
+  } else if (nameLower.includes('extrabold') || nameLower.includes('extra-bold') || nameLower.includes('extra_bold')) {
+    weight = 800;
+    variant = 'ExtraBold';
+  } else if (nameLower.includes('semibold') || nameLower.includes('semi-bold') || nameLower.includes('semi_bold') || nameLower.includes('demibold')) {
+    weight = 600;
+    variant = 'SemiBold';
+  } else if (nameLower.includes('bold')) {
+    weight = 700;
+    variant = 'Bold';
+  } else if (nameLower.includes('italic') || nameLower.includes('oblique')) {
+    italic = true;
+    variant = 'Italic';
+  } else if (nameLower.includes('thin')) {
+    weight = 100;
+    variant = 'Thin';
+  } else if (nameLower.includes('extralight') || nameLower.includes('extra-light') || nameLower.includes('extra_light') || nameLower.includes('ultralight')) {
+    weight = 200;
+    variant = 'ExtraLight';
+  } else if (nameLower.includes('light')) {
+    weight = 300;
+    variant = 'Light';
+  } else if (nameLower.includes('medium')) {
+    weight = 500;
+    variant = 'Medium';
+  } else if (nameLower.includes('heavy') || nameLower.includes('black')) {
+    weight = 900;
+    variant = weight === 900 && nameLower.includes('black') ? 'Black' : 'Heavy';
+  }
+
+  // Extract base name (remove style suffix)
+  let baseName = nameWithoutSubset;
+  const styleSuffixes = ['BoldItalic', 'Bold-Italic', 'Bold_Italic', 'ExtraBold', 'Extra-Bold', 'Extra_Bold', 'SemiBold', 'Semi-Bold', 'Semi_Bold', 'DemiBold', 'Bold', 'Italic', 'Oblique', 'Thin', 'ExtraLight', 'Extra-Light', 'Extra_Light', 'UltraLight', 'Light', 'Medium', 'Heavy', 'Black'];
+
+  for (const suffix of styleSuffixes) {
+    const regex = new RegExp(`[-_]?${suffix}$`, 'i');
+    if (regex.test(baseName)) {
+      baseName = baseName.replace(regex, '');
+      break;
+    }
+  }
+
+  return {
+    baseName,
+    style: { weight, italic, variant }
+  };
 }
 
 /**
@@ -135,8 +216,14 @@ function extractFontName(fontObj: any, fallbackKey: string): string {
  * @returns Promise<ExtractedFont>
  */
 async function extractFontData(fontObj: any): Promise<ExtractedFont> {
-  const fontName = fontObj.loadedName || fontObj.fontName || fontObj.name;
-  
+  const originalName = fontObj.loadedName || fontObj.fontName || fontObj.name;
+
+  // Parse font name to extract base name and style
+  const { baseName, style } = parseFontName(originalName);
+
+  // Clean name without subset prefix
+  const cleanName = originalName.includes('+') ? originalName.split('+')[1] : originalName;
+
   // Try to get font data from various possible locations
   let fontData: Uint8Array | null = null;
   let fontType: ExtractedFont['type'] = 'Unknown';
@@ -175,11 +262,16 @@ async function extractFontData(fontObj: any): Promise<ExtractedFont> {
     fontType = detectFontType(fontData);
   }
 
+  console.log(`🎨 Font parsed: ${originalName} → base: ${baseName}, variant: ${style.variant}, weight: ${style.weight}, italic: ${style.italic}`);
+
   return {
-    name: fontName,
+    name: cleanName,
+    originalName,
+    baseName,
     data: fontData,
     type: fontType,
     subtype: fontObj.subtype?.toString(),
+    style,
   };
 }
 
