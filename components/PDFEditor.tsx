@@ -48,6 +48,15 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
   const [parsedFonts, setParsedFonts] = useState<Map<string, ParsedFont>>(new Map());
   const [fontExtractionStatus, setFontExtractionStatus] = useState<'idle' | 'extracting' | 'done' | 'error'>('idle');
 
+  // 🆕 SEJDA-QUALITY: Drag & drop with alignment guides
+  const [draggingItem, setDraggingItem] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [alignmentGuides, setAlignmentGuides] = useState<{
+    vertical: number[];
+    horizontal: number[];
+  }>({ vertical: [], horizontal: [] });
+  const containerRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     loadPDF();
   }, [file]);
@@ -198,6 +207,114 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
       )
     );
   };
+
+  // 🆕 SEJDA-QUALITY: Drag & drop handlers
+  const SNAP_THRESHOLD = 5; // pixels
+
+  const handleMouseDown = (e: React.MouseEvent, itemId: string) => {
+    if (e.button !== 0) return; // Only left click
+    e.preventDefault();
+
+    const item = textItems.find(t => t.id === itemId);
+    if (!item) return;
+
+    setDraggingItem(itemId);
+    setSelectedText(itemId);
+    setDragOffset({
+      x: e.clientX - item.x,
+      y: e.clientY - item.y,
+    });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!draggingItem || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    let newX = e.clientX - rect.left - dragOffset.x;
+    let newY = e.clientY - rect.top - dragOffset.y;
+
+    const currentItem = textItems.find(t => t.id === draggingItem);
+    if (!currentItem) return;
+
+    // Calculate alignment guides and snapping
+    const guides = { vertical: [] as number[], horizontal: [] as number[] };
+    const otherItems = textItems.filter(t => t.id !== draggingItem);
+
+    // Check alignment with other items
+    for (const other of otherItems) {
+      // Vertical alignments (left, center, right edges)
+      const otherLeft = other.x;
+      const otherCenter = other.x + other.width / 2;
+      const otherRight = other.x + other.width;
+
+      const currentLeft = newX;
+      const currentCenter = newX + currentItem.width / 2;
+      const currentRight = newX + currentItem.width;
+
+      // Check left edge alignment
+      if (Math.abs(currentLeft - otherLeft) < SNAP_THRESHOLD) {
+        newX = otherLeft;
+        guides.vertical.push(otherLeft);
+      }
+      // Check center alignment
+      else if (Math.abs(currentCenter - otherCenter) < SNAP_THRESHOLD) {
+        newX = otherCenter - currentItem.width / 2;
+        guides.vertical.push(otherCenter);
+      }
+      // Check right edge alignment
+      else if (Math.abs(currentRight - otherRight) < SNAP_THRESHOLD) {
+        newX = otherRight - currentItem.width;
+        guides.vertical.push(otherRight);
+      }
+
+      // Horizontal alignments (top, middle, bottom edges)
+      const otherTop = other.y - other.height;
+      const otherMiddle = other.y - other.height / 2;
+      const otherBottom = other.y;
+
+      const currentTop = newY - currentItem.height;
+      const currentMiddle = newY - currentItem.height / 2;
+      const currentBottom = newY;
+
+      // Check top edge alignment
+      if (Math.abs(currentTop - otherTop) < SNAP_THRESHOLD) {
+        newY = otherTop + currentItem.height;
+        guides.horizontal.push(otherTop);
+      }
+      // Check middle alignment
+      else if (Math.abs(currentMiddle - otherMiddle) < SNAP_THRESHOLD) {
+        newY = otherMiddle + currentItem.height / 2;
+        guides.horizontal.push(otherMiddle);
+      }
+      // Check bottom edge alignment
+      else if (Math.abs(currentBottom - otherBottom) < SNAP_THRESHOLD) {
+        newY = otherBottom;
+        guides.horizontal.push(otherBottom);
+      }
+    }
+
+    setAlignmentGuides(guides);
+
+    // Update item position
+    setTextItems(items =>
+      items.map(item =>
+        item.id === draggingItem ? { ...item, x: newX, y: newY } : item
+      )
+    );
+  };
+
+  const handleMouseUp = () => {
+    setDraggingItem(null);
+    setAlignmentGuides({ vertical: [], horizontal: [] });
+  };
+
+  // Add global mouse up listener
+  useEffect(() => {
+    if (draggingItem) {
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => window.removeEventListener('mouseup', handleMouseUp);
+    }
+  }, [draggingItem]);
 
   const savePDF = async () => {
     try {
@@ -384,8 +501,29 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {/* Canvas + text overlay */}
-          <div className="relative inline-block">
+          <div
+            ref={containerRef}
+            className="relative inline-block"
+            onMouseMove={handleMouseMove}
+            style={{ cursor: draggingItem ? 'grabbing' : 'default' }}
+          >
             <canvas ref={canvasRef} className="border-2 border-gray-300 rounded-lg shadow-md" />
+
+            {/* 🆕 SEJDA-QUALITY: Alignment guides */}
+            {alignmentGuides.vertical.map((x, i) => (
+              <div
+                key={`v-${i}`}
+                className="absolute top-0 bottom-0 w-[2px] bg-blue-500 pointer-events-none z-50"
+                style={{ left: `${x}px` }}
+              />
+            ))}
+            {alignmentGuides.horizontal.map((y, i) => (
+              <div
+                key={`h-${i}`}
+                className="absolute left-0 right-0 h-[2px] bg-blue-500 pointer-events-none z-50"
+                style={{ top: `${y}px` }}
+              />
+            ))}
 
             {/* Editable text overlays */}
             {editMode && textItems.map(item => (
@@ -395,6 +533,7 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
                 value={item.text}
                 onChange={(e) => updateText(item.id, e.target.value)}
                 onClick={() => setSelectedText(item.id)}
+                onMouseDown={(e) => handleMouseDown(e, item.id)}
                 className={`absolute border-2 transition-all ${
                   selectedText === item.id
                     ? 'border-blue-500 bg-blue-50'
@@ -412,6 +551,8 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
                   padding: '0 2px',
                   lineHeight: `${item.height}px`,
                   boxShadow: '0 0 0 1px rgba(0,0,0,0.05)',
+                  cursor: draggingItem === item.id ? 'grabbing' : 'grab',
+                  userSelect: draggingItem === item.id ? 'none' : 'auto',
                 }}
               />
             ))}
