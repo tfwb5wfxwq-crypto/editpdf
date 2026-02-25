@@ -50,12 +50,15 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
 
   // 🆕 SEJDA-QUALITY: Drag & drop with alignment guides
   const [draggingItem, setDraggingItem] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [alignmentGuides, setAlignmentGuides] = useState<{
     vertical: number[];
     horizontal: number[];
   }>({ vertical: [], horizontal: [] });
   const containerRef = useRef<HTMLDivElement>(null);
+  const DRAG_THRESHOLD = 3; // pixels to move before starting drag
 
   useEffect(() => {
     loadPDF();
@@ -213,13 +216,15 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
 
   const handleMouseDown = (e: React.MouseEvent, itemId: string) => {
     if (e.button !== 0) return; // Only left click
-    e.preventDefault();
 
     const item = textItems.find(t => t.id === itemId);
     if (!item) return;
 
+    // Don't prevent default yet - let the input focus first
     setDraggingItem(itemId);
     setSelectedText(itemId);
+    setIsDragging(false);
+    setDragStartPos({ x: e.clientX, y: e.clientY });
     setDragOffset({
       x: e.clientX - item.x,
       y: e.clientY - item.y,
@@ -228,6 +233,21 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!draggingItem || !containerRef.current) return;
+
+    // Check if we've moved enough to start dragging
+    const distance = Math.sqrt(
+      Math.pow(e.clientX - dragStartPos.x, 2) +
+      Math.pow(e.clientY - dragStartPos.y, 2)
+    );
+
+    if (!isDragging && distance < DRAG_THRESHOLD) {
+      return; // Not dragging yet, just a potential click
+    }
+
+    // Start dragging
+    if (!isDragging) {
+      setIsDragging(true);
+    }
 
     const rect = containerRef.current.getBoundingClientRect();
     let newX = e.clientX - rect.left - dragOffset.x;
@@ -305,6 +325,7 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
 
   const handleMouseUp = () => {
     setDraggingItem(null);
+    setIsDragging(false);
     setAlignmentGuides({ vertical: [], horizontal: [] });
   };
 
@@ -342,9 +363,11 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
       const fontCache: { [key: string]: any } = {};
       let fontsUsed = { extracted: 0, standard: 0 };
 
-      const getFont = async (fontName: string, fontFamily?: string) => {
+      const getFont = async (fontName: string, fontFamily?: string, fontWeight?: number, fontStyle?: 'normal' | 'italic') => {
+        const cacheKey = `${fontName}-${fontWeight}-${fontStyle}`;
+
         // Return cached font if available
-        if (fontCache[fontName]) return fontCache[fontName];
+        if (fontCache[cacheKey]) return fontCache[cacheKey];
 
         // PRIORITY 1: Try to use extracted font (SEJDA QUALITY)
         const parsedFont = parsedFonts.get(fontName);
@@ -352,7 +375,7 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
           try {
             console.log(`✅ Using extracted font: ${fontName}`);
             const embeddedFont = await pdfLibDoc.embedFont(parsedFont.buffer);
-            fontCache[fontName] = embeddedFont;
+            fontCache[cacheKey] = embeddedFont;
             fontsUsed.extracted++;
             return embeddedFont;
           } catch (error) {
@@ -360,17 +383,34 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
           }
         }
 
-        // PRIORITY 2: Fallback to standard fonts
-        console.log(`ℹ️  Using standard font for: ${fontName}`);
+        // PRIORITY 2: Fallback to standard fonts WITH CORRECT VARIANT
+        const isBold = fontWeight && fontWeight >= 600;
+        const isItalic = fontStyle === 'italic';
+
+        console.log(`ℹ️  Using standard font for: ${fontName} (bold: ${isBold}, italic: ${isItalic})`);
+
         let standardFont = StandardFonts.Helvetica;
+
         if (fontFamily?.includes('Times') || fontFamily?.includes('Serif')) {
-          standardFont = StandardFonts.TimesRoman;
+          if (isBold && isItalic) standardFont = StandardFonts.TimesRomanBoldItalic;
+          else if (isBold) standardFont = StandardFonts.TimesRomanBold;
+          else if (isItalic) standardFont = StandardFonts.TimesRomanItalic;
+          else standardFont = StandardFonts.TimesRoman;
         } else if (fontFamily?.includes('Courier') || fontFamily?.includes('Mono')) {
-          standardFont = StandardFonts.Courier;
+          if (isBold && isItalic) standardFont = StandardFonts.CourierBoldOblique;
+          else if (isBold) standardFont = StandardFonts.CourierBold;
+          else if (isItalic) standardFont = StandardFonts.CourierOblique;
+          else standardFont = StandardFonts.Courier;
+        } else {
+          // Helvetica/Arial
+          if (isBold && isItalic) standardFont = StandardFonts.HelveticaBoldOblique;
+          else if (isBold) standardFont = StandardFonts.HelveticaBold;
+          else if (isItalic) standardFont = StandardFonts.HelveticaOblique;
+          else standardFont = StandardFonts.Helvetica;
         }
 
         const font = await pdfLibDoc.embedFont(standardFont);
-        fontCache[fontName] = font;
+        fontCache[cacheKey] = font;
         fontsUsed.standard++;
         return font;
       };
@@ -389,7 +429,7 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
 
       // 🆕 SEJDA-QUALITY: Draw new text with extracted fonts
       for (const item of textItems) {
-        const font = await getFont(item.fontName, item.fontFamily);
+        const font = await getFont(item.fontName, item.fontFamily, item.fontWeight, item.fontStyle);
         page.drawText(item.text, {
           x: item.x / scale,
           y: height - (item.y / scale),
@@ -505,7 +545,7 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
             ref={containerRef}
             className="relative inline-block"
             onMouseMove={handleMouseMove}
-            style={{ cursor: draggingItem ? 'grabbing' : 'default' }}
+            style={{ cursor: isDragging ? 'grabbing' : 'default' }}
           >
             <canvas ref={canvasRef} className="border-2 border-gray-300 rounded-lg shadow-md" />
 
@@ -551,8 +591,8 @@ export default function PDFEditor({ file, onClose }: PDFEditorProps) {
                   padding: '0 2px',
                   lineHeight: `${item.height}px`,
                   boxShadow: '0 0 0 1px rgba(0,0,0,0.05)',
-                  cursor: draggingItem === item.id ? 'grabbing' : 'grab',
-                  userSelect: draggingItem === item.id ? 'none' : 'auto',
+                  cursor: (draggingItem === item.id && isDragging) ? 'grabbing' : 'grab',
+                  userSelect: (draggingItem === item.id && isDragging) ? 'none' : 'auto',
                 }}
               />
             ))}
